@@ -32,7 +32,7 @@ namespace Types {
 }
 
 if (1) { 
-        const ele = document.getElementById("ar_admin_3"), txt = [..."2025.6"], len = txt.length, time = 400, rate = time/len, cond = document.getElementById("0b0aa2e601903ffb0dded3726d88dcb897be3239d6742ed43598629de08d31a5");
+        const ele = document.getElementById("ar_admin_3"), txt = [..."2025.7"], len = txt.length, time = 400, rate = time/len, cond = document.getElementById("0b0aa2e601903ffb0dded3726d88dcb897be3239d6742ed43598629de08d31a5");
         if(cond && ele) { ele.innerHTML = ""; for(let i=0; i<len; i++) { setTimeout(() => ele.innerHTML += txt.shift(), i*rate); } }; 
 }
 
@@ -317,14 +317,14 @@ function bluedeck_arv3_nswrap23h89fwe89hfu43wo47uh8fo() {
                         const init = await apicalluc(`zhwp arinit`);
                         const sessionid = init.split("--sessionid ")[1].split(" ")[0].replaceAll(/[\`\'\"]/g, "");
                         const case_number = init.split("--case-number ")[1].split(" ")[0];
-                        const upload_commands = revisions.map(r => escapi`arupload -r ${r.r} -p ${r.p} -pc ${r.pc} -rt ${r.rt} -s ${r.s} -un ${r.un} -u ${r.u} -c ${r.c}`);
+                        const upload_commands = revisions.map(r => escapi`\t --- -r ${r.r} -rt ${r.rt} -s ${r.s} -un ${r.un} -u ${r.u} -c ${r.c}`);
                         const grouped = arrgroup_bytes(upload_commands, 500_000);
                         loggy(ll("uploading", upload_commands.length));
                         let counter = 1;
                         for (const group of grouped) {
                                 loggy(ll("uploadingrev", counter, counter+group.length-1));
                                 counter += group.length;
-                                const ok = await apicalluc(escapi`zhwp arupload --session ${sessionid}` + "\n" + group.join("\n"));
+                                const ok = await apicalluc(escapi`zhwp arupload --session ${sessionid} -p -pc (\n` + group.join("\n") + "\n)");
                                 loggy(ll("upstatus") + tally_ok(ok.replaceAll("\r", "").split("\n")) + "\n");
                         }
                         loggy(ll("updone"));
@@ -365,10 +365,10 @@ function bluedeck_arv3_nswrap23h89fwe89hfu43wo47uh8fo() {
                         loggy(ll("indexpage"));
                         const index_page_content_list = revisions.map(rev => `\n<tr><td> [${minigun_link(case_number, rev.revid)} '''查看存档'''] </td><td> ${rev.timestamp.split('T').join(' ').split('Z').join('')} </td><td> [[user talk:${rev.user}|]] </td><td> ${rev.size} </td><td> ${rev.revid} </td><td> ${replace_string_escape_wikitext(rev.comment)}</td></tr>`)
 
-                        const expiry = new Date(Date.now() + 86400_000 * 30).toISOString().replace("T", " ").replace("Z", "");
+                        const expiry = new Date(Date.now() + 86400_000 * 40).toISOString().replace("T", " ").replace("Z", "");
                         const final_rev = await asyncfetchedit(
                                 index_page, 
-                                `页面[[:${pagename}]]共有${revisions.length}个已删除版本，存档如下：\n*查询时间: ~~${"~"}~~\n*由於採用站外工具作為存貯媒介，鏈接有效期僅限查詢之日起30天（至${expiry}）。如果鏈接已經過期，請再提交查詢請求。\n----\n<table style='white-space:nowrap'><tr><td></td><td>'''编辑时分'''</td><td>'''用户'''</td><td>'''页面大小'''</td><td>'''版本号'''</td><td>'''编辑摘要'''</td></tr>${index_page_content_list.toReversed().join("")}\n</table>\n----\n{`+"{subst:User:Bluedeck/infr/ar.thankyou.js}}",
+                                `页面[[:${pagename}]]共有${revisions.length}个已删除版本，存档如下：\n*查询时间: ~~${"~"}~~\n*由於採用站外工具作為存貯媒介，鏈接有效期僅限查詢之日起40天（至${expiry}）。如果鏈接已經過期，請再提交查詢請求。\n----\n<table style='white-space:nowrap'><tr><td></td><td>'''编辑时分'''</td><td>'''用户'''</td><td>'''页面大小'''</td><td>'''版本号'''</td><td>'''编辑摘要'''</td></tr>${index_page_content_list.toReversed().join("")}\n</table>\n----\n{`+"{subst:User:Bluedeck/infr/ar.thankyou.js}}",
                                 "DRV lookup: [[:"+pagename+"]]",
                                 await load_token(),
                         );

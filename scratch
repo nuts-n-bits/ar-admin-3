@@ -1,0 +1,15 @@
+zhwp arupload --session eDqY_WQN-Izor1ia -p 0 -pc "WP:Test" (
+    && arupload -r 44450768 -p 0 -pc WP:Test -rt 2017-05-21T19:29:11Z -s = -un Bluedeck -u 1351755 -c test
+    && arupload -r 48848634 -p 0 -pc WP:Test -rt 2018-03-27T07:04:28Z -s = -un Bluedeck -u 1351755 -c `Test again`
+    && arupload -r 48848742 -p 0 -pc WP:Test -rt 2018-03-27T07:15:34Z -s = -un Bluedeck -u 1351755 -c test
+)
+
+
+
+zhwp arinit
+
+zhwp arupload --session eDqY_WQN-Izor1ia -r 44450768 -p 0 -pc WP:Test -rt 2017-05-21T19:29:11Z -s = -un Bluedeck -u 1351755 -c test
+zhwp arupload --session eDqY_WQN-Izor1ia -r 48848634 -p 0 -pc WP:Test -rt 2018-03-27T07:04:28Z -s = -un Bluedeck -u 1351755 -c `Test again`
+zhwp arupload --session eDqY_WQN-Izor1ia -r 48848742 -p 0 -pc WP:Test -rt 2018-03-27T07:15:34Z -s = -un Bluedeck -u 1351755 -c test
+
+zhwp arclose --session eDqY_WQN-Izor1ia
