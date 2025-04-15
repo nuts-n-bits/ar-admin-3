@@ -9,5 +9,3 @@ then
 fi
 
 npm run minify
-
-rm ar-admin-3.js

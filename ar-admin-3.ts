@@ -21,24 +21,29 @@ namespace Types {
         }
         export type Revision = {
                 r: string
-                p: string
-                pc: string
                 rt: string
                 s: string
                 un: string
                 u: string
                 c: string
+                size: string
         }
 }
 
 if (1) { 
-        const ele = document.getElementById("ar_admin_3"), txt = [..."2025.7"], len = txt.length, time = 400, rate = time/len, cond = document.getElementById("0b0aa2e601903ffb0dded3726d88dcb897be3239d6742ed43598629de08d31a5");
+        const ele = document.getElementById("ar_admin_3"), txt = [..."2025.10"], len = txt.length, time = 400, rate = time/len, cond = document.getElementById("0b0aa2e601903ffb0dded3726d88dcb897be3239d6742ed43598629de08d31a5");
         if(cond && ele) { ele.innerHTML = ""; for(let i=0; i<len; i++) { setTimeout(() => ele.innerHTML += txt.shift(), i*rate); } }; 
 }
 
 bluedeck_arv3_nswrap23h89fwe89hfu43wo47uh8fo().ui();
 
 function bluedeck_arv3_nswrap23h89fwe89hfu43wo47uh8fo() {
+        const WIKI_HOST = "https://zh.wikipedia.org";
+        const REMOTE_HOST = "https://minigun.app";
+        const LISTING_PAGE_PREFIX = "Wikipedia:ArArchive/";
+        const X_WWW_FORM_URLENCODED = { headers: { "Content-Type": "application/x-www-form-urlencoded" } };
+        const POST = { method: "POST" };
+        const minigun_link = (case_number: string, revid: string) => escurl`https://minigun.app/@bluedeck/zhwp/arview/id/${case_number}/${revid}.txt`;
         const mld: Record<string, Types.LanguageDict> = {
                 "zh-cn": {
                         start: `开始查询 [[$1]] 的已删除版本\n`,
@@ -238,143 +243,178 @@ function bluedeck_arv3_nswrap23h89fwe89hfu43wo47uh8fo() {
                 }
                 return coll;
         }
-        async function arv3_main(pagename: string, logemitter: (s: string) => void) {
-                const WIKI_HOST = "https://zh.wikipedia.org";
-                const REMOTE_HOST = "https://minigun.app";
-                const X_WWW_FORM_URLENCODED = { headers: { "Content-Type": "application/x-www-form-urlencoded" } };
-                const POST = { method: "POST" };
-                const minigun_link = (case_number: string, revid: string) => esc`https://minigun.app/@bluedeck/zhwp/arview/id/${case_number}/${revid}.txt`;
-
-                // main proc starts
-                const revisions = await main_arproc_read(pagename);
-                const index_page = await main_arproc_write(pagename, revisions);
-                // main proc ends
-
-                function esc(strs: TemplateStringsArray, ...inserts: string[]) {
-                        let acc = strs[0];
-                        for (let i=1; i<strs.length; i++) {
-                                acc += encodeURIComponent(inserts[i-1]);
-                                acc += strs[i];
-                        }
-                        return acc;
+        function escurl(strs: TemplateStringsArray, ...inserts: string[]) {
+                let acc = strs[0];
+                for (let i=1; i<strs.length; i++) {
+                        acc += encodeURIComponent(inserts[i-1]);
+                        acc += strs[i];
                 }
-                function arrgroup_bytes(arr: string[], number: number): string[][] {
-                        const grouped: string[][] = [[]];
-                        const byte_length = [0];
-                        for (let i=0; i<arr.length; i++) {
-                                if (byte_length[byte_length.length-1] >= number) { grouped.push([]); byte_length.push(0); }
-                                grouped[grouped.length-1].push(arr[i]);
-                                byte_length[byte_length.length-1] += arr[i].length;
-                        }
-                        return grouped;
-                }
-                function loggy(s: string) {
-                        if (!logemitter) { console.log(s); }
-                        else { logemitter(s); }
-                }
-                async function load_token(): Promise<string> {
-                        const token_obj = await (await fetch(WIKI_HOST + `/w/api.php?action=query&meta=tokens&format=json`, { ...POST, ...X_WWW_FORM_URLENCODED })).json();
-                        return token_obj.query.tokens.csrftoken;
-                }
-                function replace_string_escape_wikitext(a: string): string{
-                        return a.replaceAll("<", "&lt;").replaceAll("{{", "<nowiki>{{</nowiki>").replaceAll("~~", "~<!---->~").replaceAll("[[", "[[:").replaceAll("[[::", "[[:");
-                }
-                async function asyncfetchedit(pgname: string, newcontent: string, summary: string, token: string): Promise<void> {
-                        const body = esc`action=edit&bot=1&format=json&title=${pgname}&text=${newcontent}&summary=${summary}&token=${token}`;
-                        await fetch(WIKI_HOST + `/w/api.php`, { ...POST, ...X_WWW_FORM_URLENCODED, body });
-                }
-                async function main_arproc_read(pagename: string): Promise<Array<any>> {
-                        loggy(ll("start", pagename));
-                        let prerevlist = await (await fetch(WIKI_HOST + esc`/w/api.php?action=query&prop=deletedrevisions&format=json&drvprop=content|comment|user|userid|timestamp|size|ids&drvlimit=100&titles=${pagename}`, { ...POST, ...X_WWW_FORM_URLENCODED })).json();
-                        let revlist: any[] = [];
-                        let counter = 0;
-                        while(prerevlist["continue"]) {
-                                const temp = (Object.entries(prerevlist.query.pages) as any)[0][1].deletedrevisions.toReversed();
-                                loggy(ll("found", counter += temp.length));
-                                revlist=temp.concat(revlist);
-                                prerevlist = await (await fetch(WIKI_HOST + esc`/w/api.php?action=query&prop=deletedrevisions&format=json&drvprop=content|comment|user|userid|timestamp|size|ids&drvlimit=100&titles=${pagename}&drvcontinue=${prerevlist["continue"].drvcontinue}`, { ...POST, ...X_WWW_FORM_URLENCODED })).json();
-                        }
-                        let temp;
-                        try {
-                                temp = (Object.entries(prerevlist.query.pages) as any)[0][1].deletedrevisions.toReversed();
-                        } catch (e) {
-                                loggy(ll("notfound"));
-                                throw e;
-                        }
-                        loggy(ll("foundall", counter += temp.length));
-                        revlist=temp.concat(revlist);
-                        loggy(ll("downloadedall", pagename, revlist.length));
-                        return revlist;
-                }
-                async function minigun_fullupload2(revisions: Types.Revision[]) {
-                        // -------- BEGIN minigun 2 helpers --------
-                        function nq_ch_test(tested: string) { for (const char of tested) { if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*-_=+|;:,./?".includes(char)) { return false; } } return true; }
-                        function encode_str(s: string, encode_rn: boolean) { s = s.replaceAll("\\", "\\\\"); if (encode_rn) { s = s.replaceAll("\r", "\\r").replaceAll("\n", "\\n"); } if (!s.includes("`")) { return "`" + s + "`"; } if (!s.includes(`"`)) { return `"${s}"`; } if (!s.includes(`'`)) { return `'${s}'`; } const last = s.length - 1; const threedelim = s[0] !== `"` && s[last] !== `"` ? `"""` : (s[0] !== "'" && s[last] !== "'" ? `'''` : "```"); s = s.replaceAll(threedelim, `${threedelim[0]}${threedelim[0]}\\${threedelim[0]}`); return `${threedelim}${s}${threedelim}`; }
-                        function autoencode(str: string, encode_rn: boolean) { return (str.length === 0 ? false : str.length > 100 ? false : nq_ch_test(str)) ? str : encode_str(str, encode_rn); }
-                        function escapi(templates: TemplateStringsArray, ...inserts: string[]) { let ret = ""; for (let i = 0; i < inserts.length; i++) { ret += templates[i] + autoencode(String(inserts[i]), true); } return ret + templates[templates.length - 1]; }
-                        async function apicalluc(body: string) { const txt = await (await fetch(`${REMOTE_HOST}/@bluedeck/uc`, { "method": "POST", body })).text(); return txt; }
-                        // -------- END minigun 2 helpers -------- 
-                        const init = await apicalluc(`zhwp arinit`);
-                        const sessionid = init.split("--sessionid ")[1].split(" ")[0].replaceAll(/[\`\'\"]/g, "");
-                        const case_number = init.split("--case-number ")[1].split(" ")[0];
-                        const upload_commands = revisions.map(r => escapi`\t --- -r ${r.r} -rt ${r.rt} -s ${r.s} -un ${r.un} -u ${r.u} -c ${r.c}`);
-                        const grouped = arrgroup_bytes(upload_commands, 500_000);
-                        loggy(ll("uploading", upload_commands.length));
-                        let counter = 1;
-                        for (const group of grouped) {
-                                loggy(ll("uploadingrev", counter, counter+group.length-1));
-                                counter += group.length;
-                                const ok = await apicalluc(escapi`zhwp arupload --session ${sessionid} -p -pc (\n` + group.join("\n") + "\n)");
-                                loggy(ll("upstatus") + tally_ok(ok.replaceAll("\r", "").split("\n")) + "\n");
-                        }
-                        loggy(ll("updone"));
-                        const close = await apicalluc(escapi`zhwp arclose --session ${sessionid}`);
-                        // loggy(close);
-                        return { case_number: case_number };
-                }
-                function tally_ok(ss: string[]): string {
-                        let ok = 0, fail = 0;
-                        for (const s of ss) { if (s.startsWith("http 200 OK")) { ok += 1; } else { fail += 1; } }
-                        if (fail === 0) { return `OK x ${ok}`; }
-                        else { return `OK x ${ok}; Fail x ${fail}`; }
-                }
-                async function main_arproc_write(pagename: string, revisions: Array<any>): Promise<string> {
-                        const index_page = "Wikipedia:ArArchive/" + pagename;
-                        const conforming_revisions = revisions.map(rev => ({
-                                r: rev.revid.toString(), 
-                                p: rev.parentid?.toString() ?? "0",
-                                pc: pagename,
-                                rt: rev.timestamp,
-                                s: rev.comment,
-                                un: rev.user,
-                                u: rev.userid?.toString() ?? "0",
-                                c: rev["*"],
-                                //  r   -- string --  rev id
-                                //  p   -- string --  page id
-                                //  pc  -- string --  page canon name (no hant-hans transformation)
-                                //  rt  -- string --  rev timestamp
-                                //  s   -- string --  edit summary
-                                //  un  -- string --  user name
-                                //  u   -- string --  user id
-                                //  c   -- string --  content
-                        }));
-
-                        loggy(ll("upload"));
-                        const { case_number } = await minigun_fullupload2(conforming_revisions);
-
-                        loggy(ll("indexpage"));
-                        const index_page_content_list = revisions.map(rev => `\n<tr><td> [${minigun_link(case_number, rev.revid)} '''查看存档'''] </td><td> ${rev.timestamp.split('T').join(' ').split('Z').join('')} </td><td> [[user talk:${rev.user}|]] </td><td> ${rev.size} </td><td> ${rev.revid} </td><td> ${replace_string_escape_wikitext(rev.comment)}</td></tr>`)
-
-                        const expiry = new Date(Date.now() + 86400_000 * 40).toISOString().replace("T", " ").replace("Z", "");
-                        const final_rev = await asyncfetchedit(
-                                index_page, 
-                                `页面[[:${pagename}]]共有${revisions.length}个已删除版本，存档如下：\n*查询时间: ~~${"~"}~~\n*由於採用站外工具作為存貯媒介，鏈接有效期僅限查詢之日起40天（至${expiry}）。如果鏈接已經過期，請再提交查詢請求。\n----\n<table style='white-space:nowrap'><tr><td></td><td>'''编辑时分'''</td><td>'''用户'''</td><td>'''页面大小'''</td><td>'''版本号'''</td><td>'''编辑摘要'''</td></tr>${index_page_content_list.toReversed().join("")}\n</table>\n----\n{`+"{subst:User:Bluedeck/infr/ar.thankyou.js}}",
-                                "DRV lookup: [[:"+pagename+"]]",
-                                await load_token(),
-                        );
-                        loggy(ll("done"));
-                        return index_page;
-                }
+                return acc;
         }
-        return { ui, arv3_main }
+        function arrgroup_bytes(arr: string[], number: number): string[][] {
+                const grouped: string[][] = [[]];
+                const byte_length = [0];
+                for (let i=0; i<arr.length; i++) {
+                        if (byte_length[byte_length.length-1] >= number) { grouped.push([]); byte_length.push(0); }
+                        grouped[grouped.length-1].push(arr[i]);
+                        byte_length[byte_length.length-1] += arr[i].length;
+                }
+                return grouped;
+        }
+        async function load_token(): Promise<string> {
+                const token_obj = await (await fetch(WIKI_HOST + `/w/api.php?action=query&meta=tokens&format=json`, { ...POST, ...X_WWW_FORM_URLENCODED })).json();
+                return token_obj.query.tokens.csrftoken;
+        }
+        function escwiki(a: string): string{
+                return a.replaceAll("<", "&lt;").replaceAll("{{", "<nowiki>{{</nowiki>").replaceAll("~~", "~<!---->~").replaceAll("[[", "[[:").replaceAll("[[::", "[[:");
+        }
+        async function asyncfetchedit(pgname: string, newcontent: string, summary: string, token: string): Promise<void> {
+                const body = escurl`action=edit&bot=1&format=json&title=${pgname}&text=${newcontent}&summary=${summary}&token=${token}`;
+                await fetch(WIKI_HOST + `/w/api.php`, { ...POST, ...X_WWW_FORM_URLENCODED, body });
+        }
+        async function main_arproc_read(pagename: string, loggy: (s: string) => void): Promise<{ pid: string, ptitle: string, revs: any[] }> {
+                loggy(ll("start", pagename));
+                let prerevlist = await (await fetch(WIKI_HOST + escurl`/w/api.php?action=query&prop=deletedrevisions&format=json&drvprop=content|comment|user|userid|timestamp|size|ids&drvlimit=100&titles=${pagename}`, { ...POST, ...X_WWW_FORM_URLENCODED })).json();
+                let revlist: any[] = [];
+                let counter = 0;
+                while(prerevlist["continue"]) {
+                        const temp = (Object.entries(prerevlist.query.pages) as any)[0][1].deletedrevisions;
+                        loggy(ll("found", counter += temp.length));
+                        revlist.push(...temp);
+                        prerevlist = await (await fetch(WIKI_HOST + escurl`/w/api.php?action=query&prop=deletedrevisions&format=json&drvprop=content|comment|user|userid|timestamp|size|ids&drvlimit=100&titles=${pagename}&drvcontinue=${prerevlist["continue"].drvcontinue}`, { ...POST, ...X_WWW_FORM_URLENCODED })).json();
+                }
+                let temp;
+                try {
+                        temp = (Object.entries(prerevlist.query.pages) as any)[0][1].deletedrevisions;
+                } catch (e) {
+                        loggy(ll("notfound"));
+                        throw e;
+                }
+                loggy(ll("foundall", counter += temp.length));
+                revlist.push(...temp);
+                loggy(ll("downloadedall", pagename, revlist.length));
+                const pid = String((Object.entries(prerevlist.query.pages) as any)[0][1].pageid);
+                const ptitle = (Object.entries(prerevlist.query.pages) as any)[0][1].title;
+                return { pid, ptitle, revs: revlist };
+        }
+        async function minigun_fullupload2(pagename: string, pageid: string, revisions: Types.Revision[], loggy: (s: string) => void) {
+                // -------- BEGIN minigun 2 helpers --------
+                function nq_ch_test(tested: string) { for (const char of tested) { if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*-_=+|;:,./?".includes(char)) { return false; } } return true; }
+                function encode_str(s: string, encode_rn: boolean) { s = s.replaceAll("\\", "\\\\"); if (encode_rn) { s = s.replaceAll("\r", "\\r").replaceAll("\n", "\\n"); } if (!s.includes("`")) { return "`" + s + "`"; } if (!s.includes(`"`)) { return `"${s}"`; } if (!s.includes(`'`)) { return `'${s}'`; } const last = s.length - 1; const threedelim = s[0] !== `"` && s[last] !== `"` ? `"""` : (s[0] !== "'" && s[last] !== "'" ? `'''` : "```"); s = s.replaceAll(threedelim, `${threedelim[0]}${threedelim[0]}\\${threedelim[0]}`); return `${threedelim}${s}${threedelim}`; }
+                function autoencode(str: string, encode_rn: boolean) { return (str.length === 0 ? false : str.length > 100 ? false : nq_ch_test(str)) ? str : encode_str(str, encode_rn); }
+                function escapi(templates: TemplateStringsArray, ...inserts: string[]) { let ret = ""; for (let i = 0; i < inserts.length; i++) { ret += templates[i] + autoencode(String(inserts[i]), true); } return ret + templates[templates.length - 1]; }
+                async function apicalluc(body: string) { const txt = await (await fetch(`${REMOTE_HOST}/@bluedeck/uc`, { "method": "POST", body })).text(); return txt; }
+                // -------- END minigun 2 helpers -------- 
+                const init = await apicalluc(`zhwp arinit`);
+                const sessionid = init.split("--sessionid ")[1].split(" ")[0].replaceAll(/[\`\'\"]/g, "");
+                const case_number = init.split("--case-number ")[1].split(" ")[0];
+                const upload_commands = revisions.map(r => escapi` \\\n\t --- -r ${r.r} -rt ${r.rt} -s ${r.s} -un ${r.un} -u ${r.u} -c ${r.c}`);
+                const grouped = arrgroup_bytes(upload_commands, 500_000);
+                loggy(ll("uploading", upload_commands.length));
+                let counter = 1;
+                for (const group of grouped) {
+                        loggy(ll("uploadingrev", counter, counter+group.length-1));
+                        counter += group.length;
+                        const ok = await apicalluc(escapi`zhwp arupload --session ${sessionid} -p ${pageid} -pc ${pagename} ` + group.join(""));
+                        loggy(ll("upstatus") + tally_ok(ok.replaceAll("\r", "").split("\n").slice(1)) + "\n");
+                }
+                loggy(ll("updone"));
+                const close = await apicalluc(escapi`zhwp arclose --session ${sessionid}`);
+                // loggy(close);
+                return { case_number: case_number };
+        }
+        function tally_ok(ss: string[]): string {
+                let ok = 0, fail = 0;
+                for (const s of ss) { if (s.includes("--line-status http_200_OK")) { ok += 1; } else { fail += 1; } }
+                return `OK x ${ok}; Fail x ${fail}`;
+        }
+        async function main_arproc_write(non_transformed_pagename: string, pagename: string, pageid: string, revisions: Types.Revision[], loggy: (s: string) => void): Promise<void> {
+                loggy(ll("upload"));
+                const { case_number } = await minigun_fullupload2(pagename, pageid, revisions, loggy);
+
+                loggy(ll("indexpage"));
+                const index_page_content_list = revisions.map(rev => `\n<tr><td> [${minigun_link(case_number, rev.r)} '''查看存档'''] </td><td> ${rev.rt.split('T').join(' ').split('Z').join('')} </td><td> [[user talk:${rev.un}|]] </td><td> ${rev.size} </td><td> ${rev.r} </td><td> ${escwiki(rev.s)}</td></tr>`)
+
+                const expiry = new Date(Date.now() + 86400_000 * 40).toISOString().replace("T", " ").replace("Z", "");
+                const wait1 = asyncfetchedit(
+                        LISTING_PAGE_PREFIX + pagename, 
+                        `页面[[:${pagename}]]共有${revisions.length}个已删除版本，存档如下：\n*查询时间: ~~${"~"}~~\n*由於採用站外工具作為存貯媒介，鏈接有效期僅限查詢之日起40天（至${expiry}）。如果鏈接已經過期，請再提交查詢請求。\n----\n<table style='white-space:nowrap'><tr><td></td><td>'''编辑时分'''</td><td>'''用户'''</td><td>'''页面大小'''</td><td>'''版本号'''</td><td>'''编辑摘要'''</td></tr>${index_page_content_list.join("")}\n</table>\n----\n{`+"{subst:User:Bluedeck/infr/ar.thankyou.js}}",
+                        "DRV lookup: [[:"+pagename+"]]",
+                        await load_token(),
+                );
+                const wait2 = non_transformed_pagename === pagename ? undefined : asyncfetchedit(LISTING_PAGE_PREFIX + non_transformed_pagename, `#REDIRECT [[${LISTING_PAGE_PREFIX + pagename}]]`, "DRV lookup: [[:"+pagename+"]]", await load_token());
+                await wait1;
+                await wait2;
+                loggy(ll("done"));
+                return;
+        }
+        async function arv3_main(pagename: string, loggy: (s: string) => void) {
+                const { ptitle, pid, revs } = await main_arproc_read(pagename, loggy);
+                const revs_processed = revs.map(rev => ({
+                        r: rev.revid.toString(), 
+                        p: rev.parentid?.toString() ?? "0",
+                        pc: pagename,
+                        rt: rev.timestamp,
+                        s: rev.comment,
+                        un: rev.user,
+                        u: rev.userid?.toString() ?? "0",
+                        c: rev["*"],
+                        size: rev.size,
+                        //  r   -- string --  rev id
+                        //  p   -- string --  page id
+                        //  pc  -- string --  page canon name (no hant-hans transformation)
+                        //  rt  -- string --  rev timestamp
+                        //  s   -- string --  edit summary
+                        //  un  -- string --  user name
+                        //  u   -- string --  user id
+                        //  c   -- string --  content
+                }));
+                const index_page = await main_arproc_write(pagename, ptitle, pid, revs_processed, loggy);
+        }
+        async function dry_run(pagename: string) {
+                const loggy = (s: string) => console.log(s);
+                const { ptitle, pid, revs } = await main_arproc_read(pagename, loggy);
+                const revs2 = revs.map(rev => ({
+                        r: rev.revid.toString(), 
+                        p: rev.parentid?.toString() ?? "0",
+                        pc: pagename,
+                        rt: rev.timestamp,
+                        s: rev.comment,
+                        un: rev.user,
+                        u: rev.userid?.toString() ?? "0",
+                        c: rev["*"],
+                        size: rev.size,
+                        //  r   -- string --  rev id
+                        //  p   -- string --  page id
+                        //  pc  -- string --  page canon name (no hant-hans transformation)
+                        //  rt  -- string --  rev timestamp
+                        //  s   -- string --  edit summary
+                        //  un  -- string --  user name
+                        //  u   -- string --  user id
+                        //  c   -- string --  content
+                }));
+                // -------- BEGIN minigun 2 helpers --------
+                function nq_ch_test(tested: string) { for (const char of tested) { if (!"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*-_=+|;:,./?".includes(char)) { return false; } } return true; }
+                function encode_str(s: string, encode_rn: boolean) { s = s.replaceAll("\\", "\\\\"); if (encode_rn) { s = s.replaceAll("\r", "\\r").replaceAll("\n", "\\n"); } if (!s.includes("`")) { return "`" + s + "`"; } if (!s.includes(`"`)) { return `"${s}"`; } if (!s.includes(`'`)) { return `'${s}'`; } const last = s.length - 1; const threedelim = s[0] !== `"` && s[last] !== `"` ? `"""` : (s[0] !== "'" && s[last] !== "'" ? `'''` : "```"); s = s.replaceAll(threedelim, `${threedelim[0]}${threedelim[0]}\\${threedelim[0]}`); return `${threedelim}${s}${threedelim}`; }
+                function autoencode(str: string, encode_rn: boolean) { return (str.length === 0 ? false : str.length > 100 ? false : nq_ch_test(str)) ? str : encode_str(str, encode_rn); }
+                function escapi(templates: TemplateStringsArray, ...inserts: string[]) { let ret = ""; for (let i = 0; i < inserts.length; i++) { ret += templates[i] + autoencode(String(inserts[i]), true); } return ret + templates[templates.length - 1]; }
+                // -------- END minigun 2 helpers -------- 
+                const sessionid = "SESSIONID";
+                const case_number = "CASENUMBER";
+                const upload_commands = revs2.map(r => escapi`\n\t| --- -r ${r.r} -rt ${r.rt} -s ${r.s} -un ${r.un} -u ${r.u} -c ${r.c}`);
+                const grouped = arrgroup_bytes(upload_commands, 500_000);
+                loggy(ll("uploading", upload_commands.length));
+                let counter = 1;
+                for (const group of grouped) {
+                        loggy(ll("uploadingrev", counter, counter+group.length-1));
+                        counter += group.length;
+                        const ok = loggy(escapi`zhwp arupload --session ${sessionid} -p ${pid} -pc ${ptitle} ` + group.join(""));
+                        loggy(ll("upstatus") + "\n");
+                }
+                loggy(ll("updone"));
+                const close = loggy(escapi`zhwp arclose --session ${sessionid}`);
+                // loggy(close);
+                return { case_number: case_number };
+        }
+        return { ui, arv3_main, dry_run }
 }
